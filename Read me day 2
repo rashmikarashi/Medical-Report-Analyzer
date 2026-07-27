@@ -1,0 +1,70 @@
+🩺 Medical Report Analyzer
+A Streamlit app that uses OpenAI or Groq LLM APIs, driven by structured
+prompt templates, to translate dense medical/lab reports into plain-language
+explanations — built as a Day 2 LLM App project.
+⚠️ Disclaimer: This tool is for educational purposes only. It does not
+provide medical diagnoses, treatment recommendations, or drug dosages, and is
+not a substitute for advice from a licensed healthcare professional.
+Features
+📄 Upload a PDF or TXT report, or paste report text directly
+🔄 Switch between OpenAI and Groq models from the sidebar
+🧠 Structured prompt template that always returns:
+Summary
+Key Findings
+Normal Range Values
+Values Outside Normal Range (with plain-language context)
+Questions to Ask Your Doctor
+Disclaimer
+🌐 Choose an explanation language (English, Hindi, Hinglish, Spanish, French)
+💬 Follow-up chat — ask specific questions about your report after the
+initial analysis
+⬇️ Download the analysis as a Markdown file
+🔒 API key is entered per-session in the sidebar and never stored or logged
+Demo Flow
+Paste or upload a report (e.g. a CBC panel or lipid profile).
+Enter your OpenAI or Groq API key in the sidebar.
+Click Analyze Report.
+Read the structured breakdown.
+Ask follow-up questions in the chat box at the bottom.
+Project Structure
+Code
+Setup
+1. Clone the repo
+Bash
+2. Create a virtual environment (recommended)
+Bash
+3. Install dependencies
+Bash
+4. Get an API key
+OpenAI: https://platform.openai.com/api-keys
+Groq (free tier available): https://console.groq.com/keys
+5. Run the app
+Bash
+The app opens at http://localhost:8501. Enter your API key in the sidebar
+(it's only used for that browser session — nothing is written to disk).
+How the Prompting Works
+All prompt engineering lives in prompts.py, separate from the UI code:
+SYSTEM_PROMPT — sets persistent ground rules: explain plainly, never
+diagnose, never suggest dosages, always end with a disclaimer.
+ANALYSIS_TEMPLATE — a fill-in-the-blank template that forces the model
+to return fixed Markdown section headers, so the output renders consistently
+in the UI every time regardless of what report is submitted.
+FOLLOWUP_TEMPLATE — re-supplies the original report text alongside a
+new question, so follow-up answers stay grounded in the same document.
+This template-based approach (versus one long freeform prompt) keeps outputs
+predictable, makes the prompts easy to unit-test, and lets the two templates
+be tuned independently.
+Known Limitations
+PDF text extraction relies on pypdf and works best on text-based PDFs;
+scanned/image-only PDFs will need OCR (not included in this version).
+LLM output can occasionally miss subtle abnormal values — always cross-check
+with the actual report and a professional.
+No persistent storage or authentication; this is a single-session demo tool,
+not intended for storing real patient data.
+Tech Stack
+Streamlit — UI framework
+OpenAI Python SDK
+Groq Python SDK
+pypdf — PDF text extraction
+License
+MIT — free to use and adapt for learning purposes.
