@@ -1,0 +1,20 @@
+Reflection Report — Prompt Engineering (Day 1)
+
+
+What I Set Out to Test
+For the Medical Report Analyzer project, I compared four prompting techniques — zero-shot, few-shot, chain-of-thought, and role prompting — against the same synthetic lab report, to see which failure modes each technique fixes and where each one still falls short.
+Key Takeaways by Technique
+Zero-shot is the fastest to write but the least reliable for anything requiring structure or completeness. The naive zero-shot prompts consistently missed values, used vague language ("bad" instead of a clinical direction), or drifted into unstructured prose. Adding an explicit output contract (a table, a JSON schema, a word limit) fixed most of these problems without needing examples — this technique scales well once the instructions are precise enough.
+Few-shot was the strongest technique for consistency. A single worked example was enough to lock in a repeatable format — the same 3-part explanation structure, the same tone level, the same comparison phrasing — across every subsequent value. This matters a lot for a real product, where every explanation in the UI needs to feel like it came from the same voice, not five different ones.
+Chain-of-Thought was the most surprising. I expected it to just make answers longer, but it actually surfaced insights the other techniques missed entirely — for example, connecting low vitamin D and elevated WBC as possible contributors to low hemoglobin, something a single-shot answer never mentioned. CoT also made the model's reasoning auditable: instead of trusting a bare "not urgent," I could see why each value didn't cross an emergency threshold. The tradeoff is verbosity and latency — not every user-facing output should show full reasoning, so CoT is better used internally (as a reasoning step) with only the final answer surfaced to the patient.
+Role prompting turned out to be the most powerful lever for tone and audience-fit specifically. The exact same lab values produced meaningfully different, appropriate outputs depending on persona: a physician explaining jargon as they used it, a nurse validating anxiety while staying grounded in specifics, a med-student framing things as teaching patterns, an insurance reviewer producing formal claims language, and a skeptical second-opinion persona actively hunting for gaps (like unconfirmed fasting duration) that every other persona missed. This suggests role prompting isn't just cosmetic — assigning a skeptical role specifically improved rigor, not just tone.
+
+
+Biggest Lesson
+The techniques aren't competitors — they compose. A real medical report analyzer would likely use role prompting to set the audience-appropriate voice, few-shot examples to lock the output format, and an internal chain-of-thought step (hidden from the end user) to make sure nothing gets missed or mis-flagged before the final patient-facing text is generated.
+Safety Note
+Every engineered prompt in this exercise included an explicit instruction not to suggest a diagnosis and to recommend professional follow-up. This wasn't incidental — in a domain like health, prompt engineering isn't just about output quality, it's a safety mechanism. The "before" prompts that lacked this guardrail were the ones most likely to drift toward confident-sounding but unqualified medical claims.
+What I'd Do Differently Next
+Test the same 20 prompts against a harder report (multiple conflicting abnormal values, or a report with a genuinely urgent finding) to see if the safety guardrails hold up under more pressure.
+Measure token cost/latency tradeoffs for CoT prompts specifically, since that's the one technique with a real production cost.
+Build an automated eval (a rubric scored by a second LLM call) rather than relying on my own before/after judgment, to make the comparison more rigorous going forward.
