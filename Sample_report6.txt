@@ -1,0 +1,16 @@
+PATIENT LAB REPORT
+
+Hemoglobin: 11.2 g/dL
+WBC: 9.8 x10^3/uL
+Platelets: 410 x10^3/uL
+Glucose: 118 mg/dL
+Cholesterol: 215 mg/dL
+LDL: 145 mg/dL
+HDL: 38 mg/dL
+Triglycerides: 190 mg/dL
+Creatinine: 1.0 mg/dL
+ALT: 42 U/L
+AST: 30 U/L
+TSH: 2.1 mIU/L
+Sodium: 140 mmol/L
+Potassium: 4.2 mmol/L
