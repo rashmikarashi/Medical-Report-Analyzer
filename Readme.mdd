@@ -1,0 +1,141 @@
+# 📚 PDF Chatbot — LangChain + Embeddings + ChromaDB
+
+A Streamlit app that lets you upload one or more PDFs and chat with them using
+a Retrieval-Augmented Generation (RAG) pipeline built with **LangChain**,
+**embeddings**, and **ChromaDB** as the vector store.
+
+---
+
+## How It Works (RAG Pipeline)
+
+```
+PDF(s) → PyPDFLoader → chunks (RecursiveCharacterTextSplitter)
+       → embeddings (OpenAI or local HuggingFace)
+       → ChromaDB vector store (persisted to disk)
+       → retriever (top-k similarity search)
+       → ConversationalRetrievalChain (LLM + chat memory)
+       → grounded answer + cited source pages
+```
+
+The LLM is instructed (via a strict prompt template) to answer **only** from
+retrieved chunks and to say so explicitly if the answer isn't in the document,
+rather than falling back on its own general knowledge.
+
+---
+
+## Features
+
+- 📄 Upload **multiple PDFs** at once
+- ✂️ Configurable chunk size / overlap
+- 🔎 **ChromaDB** vector store, persisted locally (`chroma_db/`) so you don't
+  need to re-embed the same PDF every session
+- 🧠 Choice of embeddings:
+  - **HuggingFace (local, free)** — `all-MiniLM-L6-v2`, no API key required
+  - **OpenAI** — `text-embedding-3-small`, higher quality, needs an API key
+- 🤖 Choice of chat LLM: **OpenAI** or **Groq**
+- 💬 Multi-turn chat with conversation memory
+- 📌 **Source page citations** shown under each answer
+- 🗑️ One-click "reset knowledge base" to start over with new PDFs
+
+---
+
+## Project Structure
+
+```
+pdf-chatbot-langchain/
+├── app.py                 # Streamlit UI
+├── rag_pipeline.py         # Loading, chunking, embeddings, ChromaDB, QA chain
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
+
+---
+
+## Setup
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/<your-username>/pdf-chatbot-langchain.git
+cd pdf-chatbot-langchain
+```
+
+### 2. Create a virtual environment
+```bash
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+```
+
+### 3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Get an API key (for the chat LLM)
+- **OpenAI**: https://platform.openai.com/api-keys
+- **Groq** (free tier): https://console.groq.com/keys
+
+> Embeddings can run for free locally with HuggingFace — an API key is only
+> strictly required for the chat model, and for OpenAI embeddings if you
+> choose that option instead.
+
+### 5. Run the app
+```bash
+streamlit run app.py
+```
+Opens at `http://localhost:8501`.
+
+---
+
+## Usage
+
+1. Upload one or more PDFs in the **"Upload your PDF(s)"** section.
+2. Click **"Process & Index PDFs"** — this chunks the text, embeds it, and
+   stores it in a local ChromaDB collection.
+3. Enter your LLM API key in the sidebar.
+4. Ask questions in the chat box. Each answer includes a **Sources** expander
+   showing which page(s) it was drawn from.
+5. Use **"Reset knowledge base"** in the sidebar to clear ChromaDB and start
+   over with different PDFs.
+
+---
+
+## Design Notes
+
+- **Why ChromaDB?** It's lightweight, runs embedded (no separate server
+  needed), and persists to disk — good fit for a local/demo RAG app.
+- **Why offer local HuggingFace embeddings?** So the app is fully usable with
+  zero API cost/keys for the embedding step; only the chat LLM call needs a
+  key.
+- **Why a strict "answer only from context" prompt?** To reduce hallucination
+  — if retrieval doesn't surface the relevant chunk, the bot says so instead
+  of guessing from its own training data.
+
+---
+
+## Known Limitations
+
+- Scanned/image-only PDFs won't extract text (no OCR built in).
+- ChromaDB collection is local to the machine running the app — not shared
+  across deployments/users out of the box.
+- Very large PDFs may take a while to embed on the first run, especially with
+  local HuggingFace embeddings on CPU.
+- Follow-up questions rely on `ConversationBufferMemory`, which can grow
+  large in very long chat sessions.
+
+---
+
+## Tech Stack
+
+- [Streamlit](https://streamlit.io/)
+- [LangChain](https://python.langchain.com/) (`langchain`, `langchain-community`,
+  `langchain-openai`, `langchain-groq`, `langchain-chroma`)
+- [ChromaDB](https://www.trychroma.com/)
+- [pypdf](https://pypi.org/project/pypdf/)
+- [sentence-transformers](https://www.sbert.net/) for local embeddings
+
+---
+
+## License
+
+MIT — free to use and adapt for learning purposes.
