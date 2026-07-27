@@ -1,0 +1,83 @@
+"""
+prompts.py
+----------
+Centralized prompt templates for the Medical Report Analyzer.
+
+Keeping prompts in one place makes them easy to version, tune, and
+reuse across both the OpenAI and Groq backends.
+"""
+
+SYSTEM_PROMPT = """You are a careful, conservative medical-report explainer assistant.
+Your job is to help a non-expert reader understand what is written in a lab or
+diagnostic report — NOT to diagnose, prescribe, or replace a licensed clinician.
+
+Rules you must always follow:
+1. Explain terms and values in plain, simple language (assume a high-school reading level).
+2. Clearly separate: (a) what the report says, (b) what is within normal range,
+   (c) what appears outside normal range, and (d) general educational context
+   for those out-of-range values.
+3. NEVER give a definitive diagnosis. Use phrases like "this may be associated with"
+   or "you may want to ask your doctor about" instead of "you have X".
+4. NEVER recommend specific drug dosages or prescribe treatment.
+5. Always end your response with a short disclaimer recommending the reader
+   consult a licensed healthcare professional.
+6. If the report text is unclear, incomplete, or not actually a medical report,
+   say so honestly instead of guessing.
+"""
+
+ANALYSIS_TEMPLATE = """Analyze the following medical report and produce a structured response
+using EXACTLY these section headers (in Markdown):
+
+## Summary
+A 3-4 sentence plain-language overview of what this report is about.
+
+## Key Findings
+A bullet list of the most important values/observations mentioned in the report.
+
+## Normal Range Values
+A bullet list of values that fall within typical reference ranges (if stated or inferable).
+
+## Values Outside Normal Range
+A bullet list of any values flagged as high/low/abnormal, with a short plain-language
+explanation of what that value generally measures and why it might be flagged.
+If nothing is out of range, say so explicitly.
+
+## Questions to Ask Your Doctor
+3-5 specific, useful questions the patient could bring to a follow-up appointment.
+
+## Disclaimer
+A short, clear reminder that this is not a diagnosis and a licensed professional
+should be consulted.
+
+Patient report text / language preference: {language}
+
+--- MEDICAL REPORT START ---
+{report_text}
+--- MEDICAL REPORT END ---
+"""
+
+FOLLOWUP_TEMPLATE = """You previously analyzed a medical report for this user. Here is the
+original report text for context:
+
+--- MEDICAL REPORT START ---
+{report_text}
+--- MEDICAL REPORT END ---
+
+The user now has a follow-up question about that report:
+"{question}"
+
+Answer clearly and simply, staying strictly within the bounds of what is written
+in the report and general educational knowledge. Do not diagnose. If the question
+requires medical judgment beyond the scope of the report, say so and recommend
+consulting a licensed professional.
+"""
+
+
+def build_analysis_prompt(report_text: str, language: str = "English") -> str:
+    """Fill in the analysis template with the report text and language."""
+    return ANALYSIS_TEMPLATE.format(report_text=report_text.strip(), language=language)
+
+
+def build_followup_prompt(report_text: str, question: str) -> str:
+    """Fill in the follow-up template with report text and the user's question."""
+    return FOLLOWUP_TEMPLATE.format(report_text=report_text.strip(), question=question.strip())
