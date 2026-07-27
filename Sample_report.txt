@@ -1,0 +1,19 @@
+PATIENT: John Doe
+DATE: 2026-07-20
+LAB REPORT - COMPLETE BLOOD COUNT & METABOLIC PANEL
+
+Hemoglobin: 11.2 g/dL
+WBC: 12500 /uL
+Platelets: 410000 /uL
+Glucose: 118 mg/dL
+Creatinine: 1.1 mg/dL
+Cholesterol: 230 mg/dL
+LDL: 145 mg/dL
+HDL: 38 mg/dL
+Triglycerides: 180 mg/dL
+Systolic BP: 138 mmHg
+Diastolic BP: 88 mmHg
+Heart Rate: 92 bpm
+TSH: 3.1 mIU/L
+
+Notes: Patient reports fatigue and occasional headaches over the past two weeks.
