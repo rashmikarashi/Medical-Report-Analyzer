@@ -1,0 +1,264 @@
+Prompts and Outputs — Medical Report Analyzer
+
+All prompts are tested against the same synthetic lab report (see README). "Before" = naive prompt. "After" = engineered prompt using the named technique. Outputs are representative sample completions used to illustrate the difference in quality.
+
+Section 1: Zero-Shot Prompting
+Asking the model to perform the task with instructions only — no examples given.
+
+Prompt 1 — Basic explanation
+Before: Explain this lab report.
+Output (Before): "This report shows hemoglobin, white blood cells, glucose, TSH, and vitamin D levels. Some are outside normal range." — vague, doesn't say which values matter or why.
+After: You are analyzing a lab report for a patient with no medical background. For each abnormal value, state what it measures, why it's flagged, and one plain-language reason it might be off. Do not suggest a diagnosis. End with a note to consult a doctor.
+Output (After): "Hemoglobin (10.2, low) — this measures oxygen-carrying capacity in blood; low levels can relate to iron intake or blood loss. WBC (11,500, high) — indicates immune activity, often linked to infection or inflammation. Glucose (118, borderline high) — reflects blood sugar control; borderline levels are worth monitoring. Vitamin D (18, deficient) — common with low sun exposure or diet. These are possible explanations, not a diagnosis — please discuss with a physician."
+Improvement: Adding role framing, an explicit output contract, and a safety guardrail turned a vague summary into a structured, cautious explanation.
+
+
+Prompt 2 — Flagging abnormal values
+Before: Which values are bad?
+Output (Before): "Hemoglobin and WBC and glucose look bad." — imprecise, uses "bad" instead of clinical framing, omits Vitamin D.
+After: List every value that falls outside its reference range. For each, state the direction (high/low) and the exact reference range it deviated from. Output as a table.
+Output (After): A clean 4-row table: Hemoglobin (Low, ref 12.0–15.5), WBC (High, ref 4,000–11,000), Glucose (Borderline High, ref 70–99), Vitamin D (Deficient, ref 30–100).
+Improvement: Explicit output format and completeness criteria eliminated the missed Vitamin D flag.
+
+
+Prompt 3 — Patient-friendly rewrite
+Before: Make this easier to understand.
+Output (Before): Reworded jargon slightly but kept clinical structure and units, still dense.
+After: Rewrite this report as if explaining it to a worried patient with no medical training, using everyday analogies. Keep it under 150 words. Avoid alarming language.
+Output (After): "Think of your blood test as a check-up under the hood. Two things stood out: your body's oxygen-carrier (hemoglobin) is a bit low, and your immune system (white blood cells) looks more active than usual — often just your body responding to something minor. Your blood sugar is a touch above ideal, worth keeping an eye on, and your vitamin D is low, which is very common and easy to fix. Nothing here looks alarming, but your doctor can walk you through next steps."
+Improvement: Length constraint and tone instruction produced genuinely readable output instead of a lightly-edited clinical summary.
+
+
+Prompt 4 — Extracting structured data
+Before: Get the data from this report.
+Output (Before): Returned the report back almost verbatim.
+After: Extract all lab values into valid JSON with keys: test_name, value, unit, reference_range, flag. Return only JSON, no other text.
+Output (After):
+Json
+Improvement: Specifying schema and "return only JSON" made the output directly parseable — critical for an actual app backend.
+
+
+Prompt 5 — Urgency triage
+Before: Is this report serious?
+Output (Before): "It could be serious, hard to say." — unhelpfully noncommittal, no structure.
+After: Classify overall urgency as Low / Moderate / High based only on the values given, and justify in one sentence per flagged value. If any value could indicate an emergency, say so explicitly; otherwise state that none of these values alone indicate an emergency.
+Output (After): "Urgency: Low–Moderate. None of these values alone indicate a medical emergency. Low hemoglobin and low vitamin D are common and manageable; elevated WBC and borderline glucose warrant a routine follow-up but are not acute red flags."
+Improvement: Forcing a bounded classification plus an explicit emergency check prevented both false alarm and false reassurance.
+Section 2: Few-Shot Prompting
+Providing 1–3 worked examples before the real task so the model mirrors format and reasoning style.
+
+
+Prompt 6 — Consistent explanation format
+Before: Explain each abnormal value.
+Output (Before): Explained values but in inconsistent lengths and structure per item.
+After:
+Code
+Output (After): "Hemoglobin carries oxygen through your blood. A low reading can relate to iron levels, diet, or blood loss. Worth mentioning to your doctor." — mirrors structure exactly: function → possible cause → gentle next step.
+Improvement: The single worked example locked in a consistent 3-part template the model then applied to every other value.
+
+
+Prompt 7 — Tone calibration
+Before: Describe the WBC result.
+Output (Before): Overly clinical: "WBC count is elevated at 11,500/µL versus reference range 4,000–11,000/µL, suggesting possible leukocytosis."
+After:
+Code
+Output (After): "Your white blood cell count is a bit higher than typical — often just a sign your immune system is active, and worth a quick check-in with your doctor rather than a cause for worry."
+Improvement: The example anchored warmth and reassurance level precisely, avoiding both alarmism and cold clinical phrasing.
+
+
+Prompt 8 — Terminology simplification
+Before: Simplify: "Fasting Glucose 118 mg/dL, borderline high, reference 70-99."
+Output (Before): "Your fasting glucose is a bit high." — loses the "borderline" nuance.
+After:
+Code
+Output (After): "Your fasting blood sugar is just above the healthy range — not high enough to be concerning yet, but worth keeping an eye on."
+Improvement: Modeling the "range framing + concern level" pattern preserved the borderline nuance that the naive prompt lost.
+
+
+Prompt 9 — Comparative reporting (this visit vs. last visit)
+Before: Compare this report to a previous one where hemoglobin was 13.1.
+Output (Before): "Hemoglobin has changed." — no direction, no magnitude, no interpretation.
+After:
+Code
+Output (After): "Your hemoglobin has dropped by about 22% since your last test, moving from a healthy level to below the lower reference limit — this trend is worth discussing with your doctor."
+Improvement: The example taught the exact comparison format (percent change + range-crossing language), which the model then replicated correctly.
+
+
+Prompt 10 — Multi-value summary paragraph
+Before: Summarize all 5 values in one paragraph.
+Output (Before): A dry list disguised as a paragraph, no narrative flow.
+After: Provided one example summary paragraph for a different fictional 3-value report, showing a lead sentence, grouped findings, and a closing recommendation — then asked the model to write the paragraph for the 5-value report in the same style.
+Output (After): "Overall, this report shows a mixed but manageable picture. Two values point toward possible mild anemia and low vitamin D, both common and treatable. Your white blood cell count and blood sugar are each slightly elevated, which is worth monitoring but not urgent. Your thyroid function looks normal. Bringing this report to your doctor for a follow-up plan is a reasonable next step."
+Improvement: The example demonstrated narrative grouping (by theme, not by list order), producing a far more readable summary.
+Section 3: Chain-of-Thought (CoT) Prompting
+Explicitly asking the model to reason step-by-step before producing a final answer.
+
+
+Prompt 11 — Root-cause brainstorming
+Before: Why might hemoglobin be low?
+Output (Before): "Could be anemia." — single-word-level answer, no reasoning shown.
+After: Think step by step: first, what does hemoglobin measure? Second, what are the 3 most common categories of causes for it being low? Third, given the other values in this report (elevated WBC, low vitamin D), does anything support or rule out any category? Then give a final summary sentence.
+Output (After): "Step 1: Hemoglobin measures the blood's oxygen-carrying capacity. Step 2: Common low-hemoglobin categories are iron/nutrient deficiency, blood loss, and chronic disease/inflammation. Step 3: The concurrent low vitamin D hints at broader nutritional gaps, while the elevated WBC could suggest an inflammatory process — both are plausible contributors, though blood loss can't be ruled out from this data alone. Summary: a nutritional or inflammation-related cause is more likely than blood loss, but lab work alone can't confirm this — a doctor's evaluation is needed."
+Improvement: Step-by-step reasoning surfaced a cross-value insight (linking vitamin D and WBC to the hemoglobin question) that a one-shot answer completely missed.
+
+
+Prompt 12 — Deciding what to flag as urgent
+Before: Is anything here urgent?
+Output (Before): "Doesn't look urgent." — no visible reasoning, easy to distrust.
+After: Reason through each value one at a time: state the value, state whether it individually is a red-flag emergency threshold, and explain why or why not. After going through all five, give a final overall urgency verdict.
+Output (After): Walked through each of the 5 values individually (e.g., "WBC 11,500 — mildly above range; true emergency territory is usually >30,000 or with fever/other symptoms, so this alone isn't a red flag"), then concluded: "None of these individually cross an emergency threshold. Overall verdict: routine follow-up recommended, not urgent care."
+Improvement: Explicit per-value reasoning made the final verdict auditable — a person can check the model's logic instead of just trusting a label.
+
+
+Prompt 13 — Building a follow-up question list
+Before: What questions should I ask my doctor?
+Output (Before): Generic list: "Ask about your results and what to do next."
+After: First, identify which values are abnormal. Second, for each abnormal value, think about what a doctor would need to know to interpret it (diet, symptoms, medication, family history). Third, turn each of those into a specific question the patient could ask. List the final questions only.
+Output (After): "1. Could my low iron/vitamin D be related to my diet, and should I take supplements? 2. Is my white blood cell count linked to any recent illness or infection I should mention? 3. Should I retest my fasting glucose, and are there lifestyle changes worth trying now? 4. Given these results together, is there a single underlying cause I should be tested for?"
+Improvement: The intermediate reasoning step (what info a doctor needs) produced sharper, non-generic questions instead of a boilerplate list.
+
+
+Prompt 14 — Explaining an apparent contradiction
+Before: Explain why WBC is high but TSH is normal.
+Output (Before): "They're unrelated." — technically true but unhelpful, dismisses the question.
+After: Reason through this step by step: (1) what does each value measure biologically, (2) are they part of the same body system or different ones, (3) does one being off and the other normal tell us anything useful? Explain your reasoning, then conclude.
+Output (After): "Step 1: WBC reflects immune system activity; TSH reflects thyroid hormone regulation. Step 2: these are different body systems and aren't expected to move together. Step 3: a normal TSH alongside high WBC actually helps narrow things down — it makes a thyroid-related cause for any symptoms less likely, while pointing more toward infection or inflammation. Conclusion: the normal TSH isn't a contradiction; it's a useful piece of the puzzle that rules one possibility out."
+Improvement: CoT reframed a "why isn't this a contradiction" question into useful diagnostic reasoning instead of a dismissive one-liner.
+
+
+Prompt 15 — Prioritizing which value to address first
+Before: What should be treated first?
+Output (Before): "Probably the hemoglobin." — no justification, arbitrary-seeming.
+After: Think through this step by step: consider severity of deviation from range, reversibility/ease of treatment, and downstream risk if left unaddressed for each abnormal value. Rank all four abnormal values from highest to lowest priority, explaining each ranking decision.
+Output (After): "1. Vitamin D deficiency — very easy to correct, low risk if treated promptly, so addressing it first has high value for low effort. 2. Hemoglobin — moderate deviation, addressing the underlying cause (possibly linked to vitamin/iron levels) is worthwhile soon. 3. Fasting glucose — borderline, but early lifestyle intervention has strong long-term payoff. 4. WBC — likely to resolve on its own if linked to a transient cause, so monitoring first makes sense before intervention."
+Improvement: Making the ranking criteria explicit turned a guess into a reasoned, defensible priority order.
+Section 4: Role Prompting
+Assigning the model a persona to shape tone, vocabulary, and framing.
+
+
+Prompt 16 — Physician persona
+Before: Explain these results.
+Output (Before): Generic, tone-neutral bullet list.
+After: You are a board-certified internal medicine physician explaining lab results to a patient during a follow-up appointment. Use a calm, reassuring, professional tone. Avoid jargon where possible, but you may use precise terms if you immediately explain them.
+Output (After): "Let's go through your results together. Your hemoglobin is a little low — that's the protein that carries oxygen in your blood — so we'll want to look at your iron levels. Your white cell count, which reflects immune activity, is mildly elevated; this is common and often temporary. Your blood sugar is just above the ideal range, so we'll talk about small diet adjustments. Good news on your thyroid — completely normal. And your vitamin D is low, which is very common and easy to correct with a supplement."
+Improvement: The physician persona naturally produced the "explain jargon as you use it" pattern and an appropriately calm, appointment-style tone without being separately instructed to do so.
+
+
+Prompt 17 — Anxious-patient-friendly persona
+Before: Reassure the patient about these results.
+Output (Before): "Don't worry, everything is probably fine." — dismissive, not grounded in the actual data.
+After: You are a compassionate nurse who specializes in calming anxious patients before they see their doctor. You never dismiss a patient's worry, but you always ground reassurance in specifics from their real results.
+Output (After): "I know seeing a report full of numbers can feel scary, so let's break it down together. None of these results suggest an emergency — the two most notable ones, low vitamin D and mild anemia, are both very common and very treatable. It's completely understandable to feel anxious, and it's a good sign you're taking your health seriously enough to look closely at this. Your doctor will help you turn this into a clear next-step plan."
+Improvement: The nurse persona balanced emotional validation with grounded specifics — better than either pure reassurance or pure data recitation.
+
+
+Prompt 18 — Medical student study-buddy persona
+Before: Teach me about these lab values.
+Output (Before): Textbook-style dry definitions with no connection between them.
+After: You are a friendly senior medical student helping a junior student study for an exam using this specific report as a case example. Use teaching language like "notice that..." and "this is a classic example of...".
+Output (After): "Notice that we have four values flagged here — this is actually a nice case to study because it shows how labs interact. Low hemoglobin plus low vitamin D is a classic combo you'll see in nutritional deficiency cases. The elevated WBC alongside a normal TSH is a good example of why you always check inflammatory markers separately from endocrine ones — they can move independently. Try this: if you saw only the glucose value in isolation, would you call it diagnostic of anything? (Answer: no — borderline alone isn't enough without a trend.)"
+Improvement: The persona shift produced pedagogical framing (patterns, classic examples, quiz-style prompts) entirely different from either the physician or nurse framing — same data, three distinct useful outputs.
+
+
+Prompt 19 — Insurance-reviewer persona (structured/formal)
+Before: Summarize this report formally.
+Output (Before): Slightly more formal prose, but still narrative and inconsistent in structure.
+After: You are a clinical documentation reviewer preparing a formal summary for an insurance claims file. Use precise, neutral, third-person clinical language. Structure as: Findings, Clinical Significance, Recommendation.
+Output (After): "Findings: Hemoglobin 10.2 g/dL (below reference range); WBC 11,500/µL (above reference range); fasting glucose 118 mg/dL (borderline elevated); TSH within normal limits; vitamin D 18 ng/mL (deficient). Clinical Significance: Findings are consistent with mild anemia and possible nutritional deficiency; elevated WBC and borderline glucose warrant monitoring. Recommendation: Follow-up laboratory reassessment and clinical correlation advised within 4–6 weeks."
+Improvement: The persona plus structural contract produced genuinely formal, claims-ready documentation language distinct from every patient-facing version above.
+
+
+Prompt 20 — Skeptical second-opinion persona
+Before: Double check this report.
+Output (Before): "Looks fine to me." — no critical engagement, rubber-stamps the input.
+After: You are a meticulous physician giving a second opinion, whose job is to question assumptions and check for anything that might have been overlooked in a first read. Actively look for inconsistencies, missing context, or values that deserve more scrutiny than they'd normally get.
+Output (After): "A few things worth flagging that a quick read might miss: the WBC elevation alone doesn't tell us if this is acute or chronic — a differential count would clarify a lot here. The glucose value is 'fasting' by label, but there's no information confirming actual fasting duration, which affects how much weight to put on it. Also, no symptom or medication history is provided, which limits how confidently any of these can be interpreted. I'd want a repeat CBC with differential and confirmation of fasting conditions before drawing firm conclusions."
+Improvement: The skeptical-reviewer persona surfaced genuinely useful critical questions (fasting confirmation, missing differential) that every other framing above had glossed over.
+
+
+Summary Table
+
+
+Technique
+Task
+Key Improvement
+1
+Zero-shot
+Basic explanation
+Structure + safety guardrail
+2
+Zero-shot
+Flag abnormal values
+Completeness via explicit criteria
+3
+Zero-shot
+Patient-friendly rewrite
+Tone + length constraint
+4
+Zero-shot
+Structured extraction
+Parseable JSON schema
+5
+Zero-shot
+Urgency triage
+Bounded classification
+6
+Few-shot
+Consistent format
+Template mirroring
+7
+Few-shot
+Tone calibration
+Precise reassurance level
+8
+Few-shot
+Terminology simplification
+Preserved nuance
+9
+Few-shot
+Comparative reporting
+Correct comparison format
+10
+Few-shot
+Multi-value summary
+Narrative grouping
+11
+CoT
+Root-cause brainstorming
+Cross-value insight surfaced
+12
+CoT
+Urgency reasoning
+Auditable verdict
+13
+CoT
+Follow-up questions
+Sharper, non-generic questions
+14
+CoT
+Explaining contradictions
+Useful diagnostic reframing
+15
+CoT
+Prioritization
+Defensible ranking
+16
+Role
+Physician persona
+Natural jargon-explaining tone
+17
+Role
+Anxious-patient nurse
+Grounded reassurance
+18
+Role
+Study-buddy
+Pedagogical framing
+19
+Role
+Insurance reviewer
+Formal structured output
+20
+Role
+Skeptical second opinion
+Surfaced overlooked gaps
